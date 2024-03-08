@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "packages": {
+    "results": {
+      "version": "0.4.0",
+      "vcsRevision": "193d3c6648bd0f7e834d4ebd6a1e1d5f93998197",
+      "url": "https://github.com/arnetheduck/nim-results",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "1e0b1f8bea61c3fb496b6942030bee3e05773cd7"
+      }
+    },
+    "questionable": {
+      "version": "0.10.13",
+      "vcsRevision": "47692e0d923ada8f7f731275b2a87614c0150987",
+      "url": "https://github.com/markspanbroek/questionable",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "1718359cebdbb1c3f9ad250a7fb03cac1af4e1d1"
+      }
+    }
+  },
+  "tasks": {}
+}

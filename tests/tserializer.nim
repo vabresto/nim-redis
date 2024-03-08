@@ -1,4 +1,4 @@
-mport std/streams
+import std/streams
 import std/unittest
 
 import questionable/results
