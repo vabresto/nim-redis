@@ -24,7 +24,8 @@ export redis_value
 
 type
   RedisClientBase[TStream] = ref object of RootObj
-    stream*: TSTream
+    stream: TSTream
+    isClosed: bool = true
 
   RedisClient* = ref object of RedisClientBase[SocketStream]
     discard
@@ -33,15 +34,28 @@ type
     discard
 
 
-proc cmd*(r: RedisClient, args: varargs[string]): ?!RedisValue =
+proc send*(r: RedisClient, args: varargs[string]): void =
   if args.len == 0:
-    return failure "cmd must have at least one arg!"
+    return
   var data = newSeq[RedisValue]()
   for s in args:
     data.add RedisValue(kind: BulkString, str: s)
   let val = RedisValue(kind: Array, arr: data)
+  if r.isClosed:
+    return
   r.stream.write(val.serialize)
+  return
+
+
+proc receive*(r: RedisClient): ?!RedisValue =
+  if r.isClosed:
+    return failure "Cannot receive from a closed client"
   return r.stream.readRedisValue()
+
+
+proc cmd*(r: RedisClient, args: varargs[string]): ?!RedisValue =
+  r.send(args)
+  return r.receive()
 
 
 proc cmd*(ar: AsyncRedisClient, args: seq[string]): Future[?!RedisValue] {.async.}=
@@ -61,12 +75,14 @@ proc close*(c: RedisClient): void =
   # Tell the server we're closing
   discard c.cmd("QUIT") # Probably don't want to discard
   c.stream.close()
+  c.isClosed = true
 
 
 proc close*(c: AsyncRedisClient): Future[void] {.async.} =
   # Tell the server we're closing
   discard await c.cmd(@["QUIT"])
   c.stream.close()
+  c.isClosed = true
 
 
 proc newRedisClient*(host: string,
@@ -76,6 +92,7 @@ proc newRedisClient*(host: string,
   var socket = newSocket(buffered = true)
   socket.connect(host, port)
   let client = RedisClient(stream: newSocketStream(socket))
+  client.isClosed = false
   var authCmd = @["AUTH"]
   if pass.isSome:
     if user.isSome:
@@ -93,6 +110,7 @@ proc newAsyncRedisClient*(host: string,
   var socket = newAsyncSocket(buffered = true)
   await socket.connect(host, port)
   let client = AsyncRedisClient(stream: newAsyncSocketStream(socket))
+  client.isClosed = false
   var authCmd = @["AUTH"]
   if pass.isSome:
     if user.isSome:

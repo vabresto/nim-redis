@@ -18,19 +18,19 @@ import nim_redis/core/streams/socketstreams
 
 proc readSimpleString(s: SimpleStreamLike | AsyncSimpleStreamLike): Future[?!RedisValue] {.multisync, gcsafe.} =
   let val = await s.readLine
-  echo "[DBG] simplestring ", val
+  # echo "[DBG] simplestring ", val
   return success RedisValue(kind: SimpleString, str: val)
 
 
 proc readError(s: SimpleStreamLike | AsyncSimpleStreamLike): Future[?!RedisValue] {.multisync, gcsafe.} =
   let val = await s.readLine
-  echo "[DBG] error ", val
+  # echo "[DBG] error ", val
   return success RedisValue(kind: Error, err: val)
 
 
 proc readInteger(s: SimpleStreamLike | AsyncSimpleStreamLike): Future[?!RedisValue] {.multisync, gcsafe.} =
   let str = await s.readLine
-  echo "[DBG] integer? ", str
+  # echo "[DBG] integer? ", str
   without val =? str.parseBiggestInt.catch, error:
     return failure error
   return success RedisValue(kind: Integer, num: val)
@@ -101,12 +101,12 @@ proc readArray(s: SimpleStreamLike | AsyncSimpleStreamLike, size: int): Future[?
   else:
     var arr = newSeq[RedisValue]()
     for idx in 0 ..< size:
-      echo "[DBG] Calling array[", idx, "]"
+      # echo "[DBG] Calling array[", idx, "]"
       let res = await s.readRedisValue()
       without val =? res, error:
         return failure error
       arr.add val
-    echo "Done reading array", arr
+    # echo "Done reading array", arr
     return success RedisValue(kind: Array, arr: arr)
 
 
@@ -118,40 +118,40 @@ proc readRedisValue*(s: SimpleStreamLike | AsyncSimpleStreamLike): Future[?!Redi
   else:
     await s.readStr(1)
   
-  echo "Got instr '", instr, "', len: ", instr.len
+  # echo "Got instr '", instr, "', len: ", instr.len
   case instr
   of "+":
-    echo "[DBG] Calling simple string ..."
+    # echo "[DBG] Calling simple string ..."
     when s is SocketStream:
       let res = s.readSimpleString2(buffer, RedisKind.SimpleString)
-      echo "[DBG] Done calling simple string"
+      # echo "[DBG] Done calling simple string"
       return res
     else:
       return await s.readSimpleString
   of "-":
-    echo "[DBG] Calling err"
+    # echo "[DBG] Calling err"
     when s is SocketStream:
       let res = s.readSimpleString2(buffer, RedisKind.Error)
-      echo "[DBG] Done calling err"
+      # echo "[DBG] Done calling err"
       return res
     else:
       return await s.readError
   of ":":
-    echo "[DBG] Calling integer"
+    # echo "[DBG] Calling integer"
     when s is SocketStream:
       let res = s.readSimpleString2(buffer, RedisKind.Integer)
-      echo "[DBG] Done calling integer"
+      # echo "[DBG] Done calling integer"
       return res
     else:
       return await s.readInteger
   of "$":
-    echo "[DBG] Calling bulk string"
+    # echo "[DBG] Calling bulk string"
     when s is SocketStream:
       let dataLen = ?s.readSimpleString2(buffer, RedisKind.Integer)
-      echo "[DBG] Done calling bulk string: data len"
+      # echo "[DBG] Done calling bulk string: data len"
       let rawData = ?s.receiveRedisFixedLenData(dataLen.num)
       let res = success RedisValue(kind: BulkString, str: rawData)
-      echo "[DBG] Done calling bulk string"
+      # echo "[DBG] Done calling bulk string"
       return res
     else:
       let res = await s.readInteger
@@ -159,18 +159,16 @@ proc readRedisValue*(s: SimpleStreamLike | AsyncSimpleStreamLike): Future[?!Redi
         return failure error
       return await s.readBulkString(size.num.int)
   of "*":
-    echo "[DBG] Calling array"
+    # echo "[DBG] Calling array"
     let res = when s is SocketStream:
       block:
         let res = s.readSimpleString2(buffer, RedisKind.Integer)
-        echo "[DBG] Done calling array: integer"
+        # echo "[DBG] Done calling array: integer"
         res
     else:
       await s.readInteger
     without size =? res, error:
       return failure error
     let finalRes = await s.readArray(size.num.int)
-    echo "[DBG] Done calling array"
+    # echo "[DBG] Done calling array"
     return finalRes
-
-

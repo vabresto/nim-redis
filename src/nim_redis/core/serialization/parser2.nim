@@ -30,7 +30,7 @@ proc receiveRedisLeadingByte*(s: SocketStream): ?!string {.gcsafe, raises: [].} 
       let bytesRead = recv(s.socket, buffer[0].addr, 1, kSocketTimeoutBig)
 
       if bytesRead > 0:
-        debug "receiveRedisLeadingByte bytesRead", bytesRead
+        # debug "receiveRedisLeadingByte bytesRead", bytesRead
         return success buffer
     except TimeoutError:
       discard
@@ -71,7 +71,7 @@ proc receiveRedisLine(s: SocketStream, buffer: var string): ?!string {.gcsafe, r
       error "receiveRedisLine got OS error", msg=getCurrentExceptionMsg()
       return failure "OS Error"
 
-  debug "receiveRedisLine read bytes", totalBytesRead, buffer
+  # debug "receiveRedisLine read bytes", totalBytesRead, buffer
   let val = buffer[0 .. totalBytesRead - 2 - 1]
   return success val
 
@@ -117,7 +117,7 @@ proc receiveRedisFixedLenData*(s: SocketStream, dataLen: int): ?!string {.gcsafe
       error "receiveRedisFixedLenData got OS error", msg=getCurrentExceptionMsg()
       return failure "OS Error"
 
-  debug "receiveRedisFixedLenData read bytes", totalBytesRead, buffer
+  # debug "receiveRedisFixedLenData read bytes", totalBytesRead, buffer
   let val = buffer[0 .. totalBytesRead - 2 - 1]
   return success val
 
