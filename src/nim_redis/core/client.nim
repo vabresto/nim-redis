@@ -41,7 +41,7 @@ proc cmd*(r: RedisClient, args: varargs[string]): ?!RedisValue =
     data.add RedisValue(kind: BulkString, str: s)
   let val = RedisValue(kind: Array, arr: data)
   r.stream.write(val.serialize)
-  return r.stream.readRedisValue
+  return r.stream.readRedisValue()
 
 
 proc cmd*(ar: AsyncRedisClient, args: seq[string]): Future[?!RedisValue] {.async.}=
@@ -54,7 +54,7 @@ proc cmd*(ar: AsyncRedisClient, args: seq[string]): Future[?!RedisValue] {.async
     data.add RedisValue(kind: BulkString, str: s)
   let val = RedisValue(kind: Array, arr: data)
   await ar.stream.write(val.serialize)
-  return await ar.stream.readRedisValue
+  return await ar.stream.readRedisValue()
 
 
 proc close*(c: RedisClient): void =

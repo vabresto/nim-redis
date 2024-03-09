@@ -2,6 +2,7 @@ import std/asyncdispatch
 import std/net
 import std/strutils
 
+import chronicles
 import questionable/results as qr
 import results
 
@@ -9,6 +10,7 @@ import nim_redis/core/redis_value
 import nim_redis/core/streams/streamlikes
 
 import nim_redis/core/serialization/parser2
+import nim_redis/core/streams/socketstreams
 
 {.experimental: "strictFuncs".}
 {.experimental: "views".}
@@ -99,53 +101,76 @@ proc readArray(s: SimpleStreamLike | AsyncSimpleStreamLike, size: int): Future[?
   else:
     var arr = newSeq[RedisValue]()
     for idx in 0 ..< size:
-      let res = await s.readRedisValue
+      echo "[DBG] Calling array[", idx, "]"
+      let res = await s.readRedisValue()
       without val =? res, error:
         return failure error
       arr.add val
+    echo "Done reading array", arr
     return success RedisValue(kind: Array, arr: arr)
 
 
 proc readRedisValue*(s: SimpleStreamLike | AsyncSimpleStreamLike): Future[?!RedisValue] {.multisync, gcsafe.} =
   var buffer = ""
 
-  let instr = when s is SimpleStreamLike:
-    ?s.receiveRedisLeadingByte()
+  let instr: string = when s is SocketStream:
+    ?(s.receiveRedisLeadingByte())
   else:
     await s.readStr(1)
   
-  echo "[DBG] Got instr '", instr, "' len", instr.len
+  echo "Got instr '", instr, "', len: ", instr.len
   case instr
   of "+":
-    echo "[DBG] Calling simple string"
-    when s is SimpleStreamLike:
-      return s.readSimpleString2(buffer, RedisKind.SimpleString)
+    echo "[DBG] Calling simple string ..."
+    when s is SocketStream:
+      let res = s.readSimpleString2(buffer, RedisKind.SimpleString)
+      echo "[DBG] Done calling simple string"
+      return res
     else:
       return await s.readSimpleString
   of "-":
-    when s is SimpleStreamLike:
-      return s.readSimpleString2(buffer, RedisKind.Error)
+    echo "[DBG] Calling err"
+    when s is SocketStream:
+      let res = s.readSimpleString2(buffer, RedisKind.Error)
+      echo "[DBG] Done calling err"
+      return res
     else:
       return await s.readError
   of ":":
-    when s is SimpleStreamLike:
-      return s.readSimpleString2(buffer, RedisKind.Integer)
+    echo "[DBG] Calling integer"
+    when s is SocketStream:
+      let res = s.readSimpleString2(buffer, RedisKind.Integer)
+      echo "[DBG] Done calling integer"
+      return res
     else:
       return await s.readInteger
   of "$":
-    when s is SimpleStreamLike:
+    echo "[DBG] Calling bulk string"
+    when s is SocketStream:
       let dataLen = ?s.readSimpleString2(buffer, RedisKind.Integer)
+      echo "[DBG] Done calling bulk string: data len"
       let rawData = ?s.receiveRedisFixedLenData(dataLen.num)
-      return success RedisValue(kind: BulkString, str: rawData)
+      let res = success RedisValue(kind: BulkString, str: rawData)
+      echo "[DBG] Done calling bulk string"
+      return res
     else:
       let res = await s.readInteger
       without size =? res, error:
         return failure error
       return await s.readBulkString(size.num.int)
   of "*":
-    let res = await s.readInteger
+    echo "[DBG] Calling array"
+    let res = when s is SocketStream:
+      block:
+        let res = s.readSimpleString2(buffer, RedisKind.Integer)
+        echo "[DBG] Done calling array: integer"
+        res
+    else:
+      await s.readInteger
     without size =? res, error:
       return failure error
-    return await s.readArray(size.num.int)
+    let finalRes = await s.readArray(size.num.int)
+    echo "[DBG] Done calling array"
+    return finalRes
 
 
