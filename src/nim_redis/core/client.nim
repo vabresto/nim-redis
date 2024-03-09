@@ -12,6 +12,7 @@ import results
 
 import nim_redis/core/redis_value
 import nim_redis/core/serialization/parser
+import nim_redis/core/serialization/parser2
 import nim_redis/core/serialization/serializer
 import nim_redis/core/streams/socketstreams
 
@@ -23,7 +24,7 @@ export redis_value
 
 type
   RedisClientBase[TStream] = ref object of RootObj
-    stream: TSTream
+    stream*: TSTream
 
   RedisClient* = ref object of RedisClientBase[SocketStream]
     discard

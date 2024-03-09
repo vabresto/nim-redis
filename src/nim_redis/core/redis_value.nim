@@ -29,7 +29,7 @@ type
       arr*: seq[RedisValue]
 
 
-func `==`*(l, r: RedisValue): bool =
+func `==`*(l, r: RedisValue): bool {.raises: [].} =
   if l.kind != r.kind:
     false
   else:
@@ -47,36 +47,41 @@ func `==`*(l, r: RedisValue): bool =
 
 
 when defined(redisGraphVerboseDollar):
-  func `$`*(v: RedisValue): string =
-    case v.kind
-    of Null:
-      "(RedisNull)"
-    of Error:
-      fmt"(RedisError '{v.err}')"
-    of SimpleString:
-      fmt"(RedisSimple '{v.str}')"
-    of BulkString:
-      fmt"(RedisString '{v.str}')"
-    of Integer:
-      fmt"(RedisInteger '{v.num}')"
-    of Array:
-      let inner = v.arr.map(`$`).join(", ")
-      fmt"(RedisArray [{inner}])"
+  func `$`*(v: RedisValue): string {.raises: [].} =
+    try:
+      case v.kind
+      of Null:
+        "(RedisNull)"
+      of Error:
+        fmt"(RedisError '{v.err}')"
+      of SimpleString:
+        fmt"(RedisSimple '{v.str}')"
+      of BulkString:
+        fmt"(RedisString '{v.str}')"
+      of Integer:
+        fmt"(RedisInteger '{v.num}')"
+      of Array:
+        let inner = v.arr.map(`$`).join(", ")
+        fmt"(RedisArray [{inner}])"
+    except ValueError:
+      "(RedisInvalid)"
 else:
-  func `$`*(v: RedisValue): string =
-    case v.kind
-    of Null:
-      "null"
-    of Error:
-      fmt"ERR:'{v.err}'"
-    of SimpleString:
-      v.str
-    of BulkString:
-      v.str
-    of Integer:
-      $v.num
-    of Array:
-      let inner = v.arr.map(`$`).join(", ")
-      fmt"[{inner}]"
-
+  func `$`*(v: RedisValue): string {.raises: [].} =
+    try:
+      case v.kind
+      of Null:
+        "null"
+      of Error:
+        fmt"ERR:'{v.err}'"
+      of SimpleString:
+        v.str
+      of BulkString:
+        v.str
+      of Integer:
+        $v.num
+      of Array:
+        let inner = v.arr.map(`$`).join(", ")
+        fmt"[{inner}]"
+    except ValueError:
+      "ERR:RedisInvalid"
 

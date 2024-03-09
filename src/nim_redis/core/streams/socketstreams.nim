@@ -7,7 +7,7 @@ import std/net
 
 type
   SocketStreamBase[TSocket] = ref object of RootObj
-    socket: TSocket
+    socket*: TSocket
 
   SocketStream* = ref object of SocketStreamBase[net.Socket]
     timeoutMs*: int
@@ -49,16 +49,16 @@ proc close*(ss: sink SocketStream | AsyncSocketStream) =
 #     return '\0'
 
 
-# proc readData*(ss: SocketStream | AsyncSocketStream, buffer: pointer, bufLen: int): Future[int] {.multisync.} =
-#   ## Attempt to fill a buffer from the stream. Sync socket supports a timeout by setting it on the object.
-#   ## Buffered and unbuffered sockets have the same behaviour as the underlying Nim standard library sockets.
-#   ## **See also:**
-#   ## * Sync: https://nim-lang.org/docs/net.html#recv%2CSocket%2Cpointer%2Cint%2Cint
-#   ## * Async: https://nim-lang.org/docs/asyncnet.html#recvInto%2CAsyncSocket%2Cpointer%2Cint
-#   when ss is SocketStream:
-#     return recv(ss.socket, buffer, bufLen, ss.timeoutMs)
-#   else:
-#     return await recvInto(ss.socket, buffer, bufLen)
+proc readData*(ss: SocketStream | AsyncSocketStream, buffer: pointer, bufLen: int): Future[int] {.multisync.} =
+  ## Attempt to fill a buffer from the stream. Sync socket supports a timeout by setting it on the object.
+  ## Buffered and unbuffered sockets have the same behaviour as the underlying Nim standard library sockets.
+  ## **See also:**
+  ## * Sync: https://nim-lang.org/docs/net.html#recv%2CSocket%2Cpointer%2Cint%2Cint
+  ## * Async: https://nim-lang.org/docs/asyncnet.html#recvInto%2CAsyncSocket%2Cpointer%2Cint
+  when ss is SocketStream:
+    return recv(ss.socket, buffer, bufLen, 15)
+  else:
+    return await recvInto(ss.socket, buffer, bufLen)
 
 
 proc readLine*(ss: SocketStream | AsyncSocketStream): Future[string] {.multisync.} =
