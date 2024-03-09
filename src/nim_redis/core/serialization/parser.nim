@@ -111,7 +111,8 @@ proc readArray(s: SimpleStreamLike | AsyncSimpleStreamLike, size: int): Future[?
 
 
 proc readRedisValue*(s: SimpleStreamLike | AsyncSimpleStreamLike): Future[?!RedisValue] {.multisync, gcsafe.} =
-  var buffer = ""
+  when s is SocketStream:
+    var buffer = ""
 
   let instr: string = when s is SocketStream:
     ?(s.receiveRedisLeadingByte())

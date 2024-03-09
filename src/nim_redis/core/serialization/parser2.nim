@@ -1,5 +1,4 @@
 import std/net
-import std/streams
 import std/strutils
 
 import chronicles
@@ -7,7 +6,6 @@ import questionable/results as qr
 import results
 
 import nim_redis/core/redis_value
-import nim_redis/core/streams/streamlikes
 import nim_redis/core/streams/socketstreams
 
 {.experimental: "strictFuncs".}
@@ -16,6 +14,7 @@ import nim_redis/core/streams/socketstreams
 const
   kSocketTimeoutSmall = 5
   kSocketTimeoutBig = 15
+
 
 proc receiveRedisLeadingByte*(s: SocketStream): ?!string {.gcsafe, raises: [].} =
   var loops = 0
