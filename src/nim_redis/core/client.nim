@@ -55,7 +55,10 @@ proc receive*(r: RedisClient): ?!RedisValue =
 
 proc cmd*(r: RedisClient, args: varargs[string]): ?!RedisValue =
   r.send(args)
-  return r.receive()
+  let res = ?r.receive()
+  if res.kind == Error:
+    return failure res.err
+  return success res
 
 
 proc cmd*(ar: AsyncRedisClient, args: seq[string]): Future[?!RedisValue] {.async.}=
