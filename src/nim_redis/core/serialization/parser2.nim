@@ -11,28 +11,18 @@ import nim_redis/core/streams/socketstreams
 {.experimental: "strictFuncs".}
 {.experimental: "views".}
 
-const
-  kSocketTimeoutSmall = 5
-  kSocketTimeoutBig = 15
-
 
 proc receiveRedisLeadingByte*(s: SocketStream): ?!string {.gcsafe, raises: [].} =
-  var loops = 0
   var buffer: string
   buffer.setLen(1)
   while true:
-    inc loops
-    if loops > 500:
-      # info "receiveRedisLeadingByte timed out", loops, kSocketTimeoutBig
-      return failure "Timed out"
     try:
-      let bytesRead = recv(s.socket, buffer[0].addr, 1, kSocketTimeoutBig)
-
+      let bytesRead = recv(s.socket, buffer[0].addr, 1, s.timeoutMs)
       if bytesRead > 0:
-        # debug "receiveRedisLeadingByte bytesRead", bytesRead
         return success buffer
     except TimeoutError:
-      discard
+      warn "receiveRedisLeadingByte timeout"
+      return failure "Timed out"
     except OSError:
       error "receiveRedisLeadingByte got OS error", msg=getCurrentExceptionMsg()
       return failure "OS Error"
@@ -42,13 +32,10 @@ proc receiveRedisLeadingByte*(s: SocketStream): ?!string {.gcsafe, raises: [].} 
 
 proc receiveRedisLine(s: SocketStream, buffer: var string): ?!string {.gcsafe, raises: [].} =
   var totalBytesRead = 0
+  # Note: When using timeouts and not persisting the buffer pos, we could end up in situations where
+  #  we consume part of the data into the buffer, and then timeout. Will need to handle recovery
   var bufferPos = 0
-  var loops = 0
   while true:
-    inc loops
-    if loops > 500:
-      warn "receiveRedisLine timed out", loops, kSocketTimeoutSmall
-      return failure "Timed out"
     try:
       if bufferPos + 1 >= buffer.len:
         if buffer.len == 0:
@@ -56,7 +43,7 @@ proc receiveRedisLine(s: SocketStream, buffer: var string): ?!string {.gcsafe, r
         else:
           buffer.setLen(buffer.len * 2)
 
-      let bytesRead = recv(s.socket, buffer[bufferPos].addr, 1, kSocketTimeoutSmall)
+      let bytesRead = recv(s.socket, buffer[bufferPos].addr, 1, s.timeoutMs)
 
       if bytesRead > 0:
         totalBytesRead += bytesRead
@@ -65,12 +52,12 @@ proc receiveRedisLine(s: SocketStream, buffer: var string): ?!string {.gcsafe, r
         if bufferPos > 2 and buffer[bufferPos - 2] == '\r' and buffer[bufferPos - 1] == '\n':
           break
     except TimeoutError:
-      discard
+      warn "receiveRedisLine timeout"
+      return failure "Timed out"
     except OSError:
       error "receiveRedisLine got OS error", msg=getCurrentExceptionMsg()
       return failure "OS Error"
 
-  # debug "receiveRedisLine read bytes", totalBytesRead, buffer
   let val = buffer[0 .. totalBytesRead - 2 - 1]
   return success val
 
@@ -80,14 +67,9 @@ proc receiveRedisFixedLenData*(s: SocketStream, dataLen: int): ?!string {.gcsafe
   # So for `$5\r\nhello\r\n`, this processes `hello\r\n`
   var totalBytesRead = 0
   var bufferPos = 0
-  var loops = 0
   var buffer: string
   buffer.setLen(dataLen + 2)
   while true:
-    inc loops
-    if loops > 500:
-      warn "receiveRedisFixedLenData timed out", loops, kSocketTimeoutSmall
-      return failure "Timed out"
     try:
       if bufferPos + 1 >= buffer.len:
         if buffer.len == 0:
@@ -95,28 +77,24 @@ proc receiveRedisFixedLenData*(s: SocketStream, dataLen: int): ?!string {.gcsafe
         else:
           buffer.setLen(buffer.len * 2)
 
-      let bytesRead = recv(s.socket, buffer[bufferPos].addr, 1, kSocketTimeoutSmall)
+      let bytesRead = recv(s.socket, buffer[bufferPos].addr, 1, s.timeoutMs)
 
       if bytesRead > 0:
         totalBytesRead += bytesRead
         bufferPos += bytesRead
 
-        let chk1 = totalBytesRead >= dataLen
-        let chk2 = bufferPos > 2
-        let chk3 = chk2 and buffer[bufferPos - 2] == '\r'
-        let chk4 = chk2 and buffer[bufferPos - 1] == '\n'
-
-        # info "receiveRedisFixedLenData status", dataLen, totalBytesRead, chk1, chk2, chk3, chk4
-
-        if chk1 and chk2 and chk3 and chk4:
+        if totalBytesRead >= dataLen and
+            bufferPos > 2 and
+            buffer[bufferPos - 2] == '\r' and
+            buffer[bufferPos - 1] == '\n':
           break
     except TimeoutError:
-      discard
+      warn "receiveRedisLine timeout"
+      return failure "Timed out"
     except OSError:
       error "receiveRedisFixedLenData got OS error", msg=getCurrentExceptionMsg()
       return failure "OS Error"
 
-  # debug "receiveRedisFixedLenData read bytes", totalBytesRead, buffer
   let val = buffer[0 .. totalBytesRead - 2 - 1]
   return success val
 

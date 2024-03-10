@@ -76,15 +76,23 @@ proc cmd*(ar: AsyncRedisClient, args: seq[string]): Future[?!RedisValue] {.async
 
 proc close*(c: RedisClient): void =
   # Tell the server we're closing
-  discard c.cmd("QUIT") # Probably don't want to discard
-  c.stream.close()
+  if not c.isClosed:
+    try:
+      discard c.cmd("QUIT") # Probably don't want to discard
+    finally:
+      c.stream.close()
   c.isClosed = true
 
 
 proc close*(c: AsyncRedisClient): Future[void] {.async.} =
   # Tell the server we're closing
-  discard await c.cmd(@["QUIT"])
-  c.stream.close()
+  if not c.isClosed:
+    try:
+      discard await c.cmd(@["QUIT"])
+    except Exception:
+      discard
+    finally:
+      c.stream.close()
   c.isClosed = true
 
 

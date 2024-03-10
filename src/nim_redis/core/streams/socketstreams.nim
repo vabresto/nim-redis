@@ -56,7 +56,7 @@ proc readData*(ss: SocketStream | AsyncSocketStream, buffer: pointer, bufLen: in
   ## * Sync: https://nim-lang.org/docs/net.html#recv%2CSocket%2Cpointer%2Cint%2Cint
   ## * Async: https://nim-lang.org/docs/asyncnet.html#recvInto%2CAsyncSocket%2Cpointer%2Cint
   when ss is SocketStream:
-    return recv(ss.socket, buffer, bufLen, 15)
+    return recv(ss.socket, buffer, bufLen, ss.timeoutMs)
   else:
     return await recvInto(ss.socket, buffer, bufLen)
 
