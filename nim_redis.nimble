@@ -1,9 +1,9 @@
 # Package
 
-version       = "0.3.0"
+version       = "0.4.0"
 author        = "Victor Brestoiu"
 description   = "Nim Redis Client"
-license       = "Proprietary"
+license       = "MIT"
 srcDir        = "src"
 
 

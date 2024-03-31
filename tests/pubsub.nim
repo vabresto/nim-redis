@@ -1,3 +1,5 @@
+## NOTE: Not a unit test because it requires a redis instance to interact with, this is more of an example.
+
 import std/options
 import std/os
 
